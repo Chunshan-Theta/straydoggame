@@ -15,6 +15,10 @@
 
 /* V0.2 revisions: compact role-specific views, unlimited actions, stacking facilities */
 .active-meta .action-dots{display:none}
+/* Declutter: hide secondary hints, keep core info */
+.panel-sub,.role-note,.footer-note,.stat-pills,.active-person p,.active-meta,.round-sub,.section-label,.tiny-note,.pill,.setup-hero p,.facility img{display:none!important}
+.facility{grid-template-columns:1fr;min-height:0}
+.resource-row{grid-template-columns:repeat(4,1fr)}
 .main-grid.gov-mode{grid-template-columns:minmax(0,1.25fr) minmax(300px,.85fr)}
 .main-grid.gov-mode #streetPanel,.main-grid.gov-mode #facilityPanel{display:none}
 .main-grid.gov-mode .right-col{display:contents}
@@ -284,9 +288,9 @@ function renderActivePanel(p){const root=el('activePanel');
   updateGrantButtons();
  } else {
   const usedFundraise=p.lastFundraiseRound===game.round;
-  root.innerHTML=`<div class="panel-head"><div><h3>🏠 收容所經營</h3><div class="panel-sub">不限行動次數；可連續照護、採購、建設與送養</div></div><span class="count-badge">${p.dogs.length} / ${capacity(p)} 隻</span></div><div class="resource-row"><div class="resource money"><div class="r-icon">💰</div><strong>${p.funds}</strong><span>資金</span></div><div class="resource food"><div class="r-icon">🥣</div><strong>${p.food}</strong><span>飼料</span></div><div class="resource med"><div class="r-icon">🩺</div><strong>${p.medicine}</strong><span>醫療包</span></div></div>
-  <div class="section-label">經營行動（不限次數，受資源與容量限制）</div><div class="action-grid"><button class="action-option" onclick="fundraise()" ${usedFundraise?'disabled':''}><span class="a-icon">📣</span><strong>募款宣傳</strong><span>${usedFundraise?'本回合已使用':'每回合限一次：獲得 $2、+1 聲望'}</span></button><button class="action-option" onclick="buySupply('food')" ${p.funds<2?'disabled':''}><span class="a-icon">🥣</span><strong>採購飼料</strong><span>$2 換 3 份飼料</span></button><button class="action-option" onclick="buySupply('med')" ${p.funds<2?'disabled':''}><span class="a-icon">🩺</span><strong>採購醫療包</strong><span>$2 換 2 個醫療包</span></button><button class="action-option" onclick="el('facilityPanel').scrollIntoView({behavior:'smooth',block:'start'})"><span class="a-icon">🏗️</span><strong>設施建設</strong><span>右側選擇設施，可重複興建</span></button></div>
-  <div class="kennel-title">🐶 我的收容犬 <span>${p.dogs.length} 隻 · 容量 ${capacity(p)}</span></div><div class="shelter-dogs">${p.dogs.length?p.dogs.map(d=>dogCardHTML(d,'kennel',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">目前還沒有收容犬。<br>從左側街頭浪浪區選擇一隻開始救援吧！</div>'}</div><div class="shelter-board"><h4>收容所營運概況</h4><div class="shelter-stats"><div class="mini-stat"><strong>${p.adoptions}</strong><span>成功送養</span></div><div class="mini-stat"><strong>${p.reputation}</strong><span>聲望</span></div><div class="mini-stat"><strong>${p.careScore}</strong><span>照護分</span></div></div></div><div class="role-note">健康犬可送養；受傷犬先治療；警戒犬先訓練。每座設施都增加 1 隻容量上限，效果會隨數量累加。</div>`;
+  root.innerHTML=`<div class="panel-head"><div><h3>🏠 收容所經營</h3><div class="panel-sub">不限行動次數；可連續照護、採購、建設與送養</div></div><span class="count-badge">${p.dogs.length} / ${capacity(p)} 隻</span></div><div class="resource-row"><div class="resource money"><div class="r-icon">💰</div><strong>${p.funds}</strong><span>資金</span></div><div class="resource food"><div class="r-icon">🥣</div><strong>${p.food}</strong><span>飼料</span></div><div class="resource med"><div class="r-icon">🩺</div><strong>${p.medicine}</strong><span>醫療包</span></div><div class="resource rep"><div class="r-icon">⭐</div><strong>${p.reputation}</strong><span>聲望</span></div></div>
+  <div class="section-label">經營行動（不限次數，受資源與容量限制）</div><div class="action-grid"><button class="action-option" onclick="fundraise()" ${usedFundraise?'disabled':''}><span class="a-icon">📣</span><strong>募款宣傳</strong><span>${usedFundraise?'本回合已使用':'每回合限一次：獲得 $2、+1 聲望'}</span></button><button class="action-option" onclick="buySupply('food')" ${p.funds<2?'disabled':''}><span class="a-icon">🥣</span><strong>採購飼料</strong><span>$2 換 3 份飼料</span></button><button class="action-option" onclick="buySupply('med')" ${p.funds<2?'disabled':''}><span class="a-icon">🩺</span><strong>採購醫療包</strong><span>$2 換 2 個醫療包</span></button></div>
+  <div class="kennel-title">🐶 我的收容犬 <span>${p.dogs.length} 隻 · 容量 ${capacity(p)}</span></div><div class="shelter-dogs">${p.dogs.length?p.dogs.map(d=>dogCardHTML(d,'kennel',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">目前還沒有收容犬。<br>從左側街頭浪浪區選擇一隻開始救援吧！</div>'}</div>`;
  }
 }
 function renderFacilities(p){el('facilityList').innerHTML=FACILITIES.map(f=>{const count=p.role==='shelter'?facilityCount(p,f.id):0;const canBuild=p.role==='shelter'&&p.funds>=f.cost&&!game.handoffPending;let button='';if(p.role==='shelter')button=`<div class="facility-count">🏡 已建 ${count} 座 · 容量 +${count}</div><button class="btn green" ${canBuild?'':'disabled'} onclick="buildFacility('${f.id}')">${count?'再建一座':'興建設施'} · $${f.cost}</button>`;else button='<span class="tiny-note">收容所專屬</span>';return `<div class="facility"><img src="${FACILITY_IMAGES[f.id]}" alt="${f.name}" loading="lazy"><div class="facility-content"><strong>${f.emoji} ${f.name}</strong><p>${f.effect}</p>${button}</div></div>`}).join('')}
@@ -303,7 +307,7 @@ function drawCrisisCard(){const card={...pick(CRISIS_CARDS),triggerCount:game.st
 }
 function showCrisis(card){el('crisisEmoji').textContent=card.emoji;el('crisisTitle').textContent=card.title;el('crisisThresholdText').textContent=`第 ${card.triggerRound||game.round} 回合結束時，街頭浪浪達到 ${card.triggerCount??game.streetDogs.length} 隻（門檻 ${CRISIS_THRESHOLD} 隻），因此觸發危機。${card.desc}`;el('crisisEffect').innerHTML=`<div class="impact-item"><span class="impact-check">!</span><span>${esc(card.effect)}</span></div>`;el('crisisOverlay').classList.add('show')}
 function dismissCrisis(){el('crisisOverlay').classList.remove('show');const next=game?.crisisNext;game.crisisNext=null;saveState();if(next==='results')showResults();else if(next==='handoff')showHandoff()}
-function renderLog(){el('actionLog').innerHTML=game.log.slice(0,12).map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
+function renderLog(){el('actionLog').innerHTML=game.log.slice(0,5).map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
 function showSetupRulesHint(){toast('請使用上方「遊戲規則」查看規則。')}
 // Friendly local setup: if a saved game exists, offer to resume it.
 checkResume();
