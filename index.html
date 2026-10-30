@@ -105,11 +105,11 @@
   <div class="rule-item"><div class="rule-icon">🩺</div><div><strong>照護與送養</strong><span>治療受傷浪浪花費 $2；警戒浪浪訓練花費 $2。送養會立即獲得資金及公共信任。每回合各送養管道額度獨立計算：基本送養 1 隻（+$1）；每座咖啡廳 1 隻（+$2，限一般浪浪）；每座醫療站 1 隻（+$1，限治癒的病犬）；每座訓犬基地 1 隻（+$1，限訓練過的凶犬）。設施數量不限。</span></div></div>
   <div class="rule-item"><div class="rule-icon">🏗️</div><div><strong>設施可重複建造</strong><span>咖啡廳 $2、訓犬基地 $1、醫療站 $1，且每座增加 1 個收容空間。每座設施增加 1 個容量，以及對應管道的 1 個送養額度，數量不限。咖啡廳每回合 +$1；訓犬基地降低訓練費；醫療站降低治療費。</span></div></div>
   <div class="rule-item"><div class="rule-icon">🏛️</div><div><strong>政府預算與補助</strong><span>政府開局 $30。協調環節中，政府只能支援特定收容所：出資蓋設施、給予經費，或兩者並行，並提案讓該收容所收容未安置的街頭浪浪。回合結算時依未安置浪浪數量補充政府預算：少於 3 隻 +$5、3–4 隻 +$3、5–6 隻 +$1，7 隻以上無。收容所開局資金為 $0。</span></div></div>
-  <div class="rule-item"><div class="rule-icon">🍚</div><div><strong>回合維護與危機</strong><span>每回合結束，收容所有收容犬即照護分 +1。政府確認後，未安置浪浪數量較上回合結算時每增加 2 隻就翻 1 張危機卡並立即結算（沒有增加就不翻）；街頭無法安置的浪浪超過 8 隻（9 隻以上）時，遊戲立即結束。</span></div></div>
+  <div class="rule-item"><div class="rule-icon">🍚</div><div><strong>回合維護與危機</strong><span>每回合結束，收容所有收容犬即照護分 +1。政府確認後，依街頭未安置浪浪數量翻危機卡並立即結算：1–2 隻翻 1 張、3–4 隻翻 2 張、5–6 隻翻 3 張、7 隻以上翻 4 張（0 隻不翻）；街頭無法安置的浪浪超過 8 隻（9 隻以上）時，遊戲立即結束。</span></div></div>
   <div class="rule-item"><div class="rule-icon">📣</div><div><strong>募款限制</strong><span>行動點已移除，可自由連續執行動作；為避免無限刷取資金，募款宣傳每位收容所玩家每回合限一次。</span></div></div>
   <div class="rule-item"><div class="rule-icon">🏆</div><div><strong>勝負計分</strong><span>收容所依送養、照護、設施與犬隻狀態計分；政府依公共信任、政策介入與成功送養計分。</span></div></div>
 </div><button class="btn primary block" onclick="closeRules()">知道了，繼續遊戲</button><button class="btn block" onclick="closeRules();showSetupRulesHint()">回到遊戲設定</button></div></div>
-<div class="overlay" id="crisisOverlay"><div class="modal crisis-modal"><div class="modal-icon" id="crisisEmoji">⚠️</div><div class="kicker">STREET CRISIS · 危機事件</div><h2 id="crisisTitle">危機卡</h2><p id="crisisThresholdText">街頭浪浪過多，危機已經發生。</p><div id="crisisEffect" class="impact-list"></div><div class="crisis-threshold">危機規則：未安置浪浪較上回合每增加 2 隻，翻 1 張危機卡</div><button class="btn primary block" onclick="dismissCrisis()">了解危機效果，繼續遊戲 →</button></div></div>
+<div class="overlay" id="crisisOverlay"><div class="modal crisis-modal"><div class="modal-icon" id="crisisEmoji">⚠️</div><div class="kicker">STREET CRISIS · 危機事件</div><h2 id="crisisTitle">危機卡</h2><p id="crisisThresholdText">街頭浪浪過多，危機已經發生。</p><div id="crisisEffect" class="impact-list"></div><div class="crisis-threshold">危機規則：未安置浪浪 1–2 隻翻 1 張、3–4 隻翻 2 張、5–6 隻翻 3 張、7 隻以上翻 4 張</div><button class="btn primary block" onclick="dismissCrisis()">了解危機效果，繼續遊戲 →</button></div></div>
 <div class="overlay" id="effectOverlay"><div class="modal adoption-modal"><div class="modal-icon">🏡</div><div class="kicker">ADOPTION SUCCESS</div><h2 id="effectTitle">領養成功！</h2><p id="effectDesc">效果已即時生效。</p><div class="adoption-dog-row"><img id="effectDogImage" alt="已成功送養的狗狗"><div><strong id="effectDogName">浪浪</strong><span>已找到新家，並且完成以下效果</span></div></div><div id="effectList" class="impact-list"></div><button class="btn primary block" onclick="closeEffectOverlay()">繼續行動</button></div></div>
 <div class="overlay" id="resultOverlay"><div class="modal"><div class="modal-icon">🏆</div><div class="kicker">GAME COMPLETE</div><h2 id="resultTitle">五回合結束！</h2><p id="resultDesc">一起看看這場救援行動的成果。</p><div id="resultContent"></div><button class="btn primary block" onclick="newGameFromResult()">再開一局</button><button class="btn block" onclick="closeResult()">查看最後盤面</button></div></div>
 <div class="toast" id="toast"></div>
@@ -129,7 +129,7 @@ const FACILITIES = [
  {id:'training',name:'訓犬基地',cost:1,short:'訓犬基地',effect:'每座降低訓練費 $1（最低 $0）；第 2 座起每座讓訓練多獲得 $1；每座提供 1 個訓練所送養額度，可送養訓練過的凶犬（+$1）。',emoji:'🦴'},
  {id:'medical',name:'醫療站',cost:1,short:'醫療站',effect:'每座降低治療費 $1（最低 $0）；每次治療獎勵 $1，每座再 +$1；每座提供 1 個醫療所送養額度，可送養治癒的病犬（+$1）。效果可累加。',emoji:'🩺'}
 ];
-const CRISIS_STEP = 2;
+function crisisCount(n){return n<=0?0:n<=2?1:n<=4?2:n<=6?3:4}
 function govIncome(n){return n<3?5:n<=4?3:n<=6?1:0}
 const OVERFLOW_LIMIT = 8;
 const RESCUE_COST = 1;
@@ -252,9 +252,9 @@ function endRound(){
  addLog(`第 ${game.round} 回合結束：本回合成功送養 ${game.roundAdoptions} 隻。`);
  const streetNow=game.streetDogs.length;const prev=game.prevStreet??streetNow;
  const income=govIncome(streetNow);if(income>0){game.players.gov.funds+=income;addLog(`街頭未安置浪浪 ${streetNow} 隻，政府本回合額外預算 +$${income}。`)}
- const n=Math.floor(Math.max(0,streetNow-prev)/CRISIS_STEP);game.prevStreet=streetNow;
+ const n=crisisCount(streetNow);game.prevStreet=streetNow;
  if(n>0&&streetNow<=OVERFLOW_LIMIT){const deck=shuffle(CRISIS_CARDS);const cards=[];for(let i=0;i<n;i++)cards.push(drawCrisisCard(deck[i%deck.length]));
-  const crisis={emoji:cards[0].emoji,title:cards.map(c=>c.title).join('、'),desc:cards.map(c=>c.desc).join(''),effect:cards.map(c=>c.effect).join(' '),triggerCount:streetNow,triggerRound:game.round,increase:streetNow-prev,count:n};game.lastCrisis=crisis;return crisis}
+  const crisis={emoji:cards[0].emoji,title:cards.map(c=>c.title).join('、'),desc:cards.map(c=>c.desc).join(''),effect:cards.map(c=>c.effect).join(' '),triggerCount:streetNow,triggerRound:game.round,count:n};game.lastCrisis=crisis;return crisis}
  return null;
 }
 function prepareNextRound(){
@@ -327,7 +327,7 @@ function drawCrisisCard(base){const card={...(base||pick(CRISIS_CARDS)),triggerC
  else if(card.id==='capacityOverload'){const full=[];for(const id of ['s1','s2','s3']){const p=game.players[id];if(p.dogs.length>=capacity(p)){p.careScore--;full.push(p.name)}}effect=full.length?`${full.join('、')} 已達容量上限，照護分各 -1。`:'本回合沒有收容所達到容量上限，危機造成警告但沒有額外扣分。'}
  card.effect=effect;addLog(`危機卡「${card.title}」：${effect}`);return card;
 }
-function showCrisis(card){el('crisisEmoji').textContent=card.emoji;el('crisisTitle').textContent=card.title;el('crisisThresholdText').textContent=`第 ${card.triggerRound||game.round} 回合協調結束後，街頭未安置浪浪 ${card.triggerCount??game.streetDogs.length} 隻，較上回合增加 ${card.increase??'?'} 隻（每增加 ${CRISIS_STEP} 隻翻 1 張），翻出 ${card.count??1} 張危機卡。${card.desc}`;el('crisisEffect').innerHTML=`<div class="impact-item"><span class="impact-check">!</span><span>${esc(card.effect)}</span></div>`;el('crisisOverlay').classList.add('show')}
+function showCrisis(card){el('crisisEmoji').textContent=card.emoji;el('crisisTitle').textContent=card.title;el('crisisThresholdText').textContent=`第 ${card.triggerRound||game.round} 回合協調結束後，街頭未安置浪浪 ${card.triggerCount??game.streetDogs.length} 隻，依數量翻出 ${card.count??1} 張危機卡。${card.desc}`;el('crisisEffect').innerHTML=`<div class="impact-item"><span class="impact-check">!</span><span>${esc(card.effect)}</span></div>`;el('crisisOverlay').classList.add('show')}
 function dismissCrisis(){el('crisisOverlay').classList.remove('show');const next=game?.crisisNext;game.crisisNext=null;saveState();if(next==='results')showResults();else if(next==='handoff')showHandoff()}
 function renderLog(){el('actionLog').innerHTML=game.log.slice(0,12).map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
 function showSetupRulesHint(){toast('請使用上方「遊戲規則」查看規則。')}
