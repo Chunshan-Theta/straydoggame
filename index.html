@@ -102,8 +102,8 @@
 <div class="overlay" id="rulesOverlay"><div class="modal"><div class="modal-icon">📖</div><h2>快速規則</h2><p>這份原型把部分數值先做成可試玩的版本，適合先跑一局檢查流程。</p><div class="rule-grid">
   <div class="rule-item"><div class="rule-icon">🔄</div><div><strong>回合順序</strong><span>每回合依序由政府、收容所 1、收容所 2、收容所 3 行動，共 5 回合。每位玩家可不限次數執行可負擔的行動，完成後自行按「結束回合／交棒」。</span></div></div>
   <div class="rule-item"><div class="rule-icon">🐕</div><div><strong>收容浪浪</strong><span>收容浪浪花費 $1；基礎容量 3 隻，每一座設施與政府擴容都會增加容量。容量或資金不足時無法執行對應行動。</span></div></div>
-  <div class="rule-item"><div class="rule-icon">🩺</div><div><strong>照護與送養</strong><span>治療受傷浪浪花費 $2；警戒浪浪訓練花費 $2。健康浪浪送養後會立即獲得資金及公共信任，並顯示效果明細。</span></div></div>
-  <div class="rule-item"><div class="rule-icon">🏗️</div><div><strong>設施可重複建造</strong><span>咖啡廳 $2、訓犬基地 $1、醫療站 $1，且每座增加 1 個收容空間。咖啡廳每回合及每次送養都增加收入；訓犬基地降低訓練費；醫療站降低治療費，並提高治療獎勵。相同設施效果可以累加。</span></div></div>
+  <div class="rule-item"><div class="rule-icon">🩺</div><div><strong>照護與送養</strong><span>治療受傷浪浪花費 $2；警戒浪浪訓練花費 $2。送養會立即獲得資金及公共信任。基本送養 +$1；咖啡廳送養 +$2（每多一座再 +$1）。治癒的病犬只能從醫療所送養（+$1），訓練過的凶犬只能從訓練所送養（+$1）。每回合送養額度基本為 1 隻，每座設施（數量不限）再 +1。</span></div></div>
+  <div class="rule-item"><div class="rule-icon">🏗️</div><div><strong>設施可重複建造</strong><span>咖啡廳 $2、訓犬基地 $1、醫療站 $1，且每座增加 1 個收容空間。每座設施都增加 1 個送養額度，數量不限。咖啡廳每回合 +$1 並提高一般送養收入；訓犬基地降低訓練費並開放凶犬送養；醫療站降低治療費並開放病犬送養。</span></div></div>
   <div class="rule-item"><div class="rule-icon">🏛️</div><div><strong>政府預算與補助</strong><span>政府開局只有一次性 $30 預算，不會自動補充。政府只能支援收容所：出資替收容所蓋建築，及／或給予額外經費後把街頭浪浪安置到該收容所（可同時進行）。收容所開局資金為 $0。</span></div></div>
   <div class="rule-item"><div class="rule-icon">🍚</div><div><strong>回合維護與危機</strong><span>每回合結束，收容所有收容犬即照護分 +1。若街頭浪浪達 8 隻以上，回合結束時會抽出並立即結算一張危機卡；街頭無法安置的浪浪超過 8 隻（9 隻以上）時，遊戲立即結束。</span></div></div>
   <div class="rule-item"><div class="rule-icon">📣</div><div><strong>募款限制</strong><span>行動點已移除，可自由連續執行動作；為避免無限刷取資金，募款宣傳每位收容所玩家每回合限一次。</span></div></div>
@@ -125,14 +125,23 @@ const STATUS = {
   alert:{label:'需要訓練',emoji:'!',className:'state-alert'}
 };
 const FACILITIES = [
- {id:'cafe',name:'咖啡廳',cost:2,short:'公益咖啡廳',effect:'每座每回合 +1 資金；每座在成功送養時再額外 +1 資金。效果可累加。',emoji:'☕'},
- {id:'training',name:'訓犬基地',cost:1,short:'訓犬基地',effect:'每座降低訓練費 $1（最低 $0）；第 2 座起，每多一座讓每次訓練額外獲得 $1 獎勵（基本獎勵 $1）。',emoji:'🦴'},
- {id:'medical',name:'醫療站',cost:1,short:'醫療站',effect:'每座降低治療費 $1（最低 $0）；每次治療獲得 $1 獎勵，每座再額外 +$1。效果可累加。',emoji:'🩺'}
+ {id:'cafe',name:'咖啡廳',cost:2,short:'公益咖啡廳',effect:'每座每回合 +1 資金；基本送養 +$1，每座咖啡廳讓一般浪浪送養再 +$1。',emoji:'☕'},
+ {id:'training',name:'訓犬基地',cost:1,short:'訓犬基地',effect:'每座降低訓練費 $1（最低 $0）；第 2 座起每座讓訓練多獲得 $1；可送養訓練過的凶犬（+$1）。',emoji:'🦴'},
+ {id:'medical',name:'醫療站',cost:1,short:'醫療站',effect:'每座降低治療費 $1（最低 $0）；每次治療獎勵 $1，每座再 +$1；可送養治癒的病犬（+$1）。效果可累加。',emoji:'🩺'}
 ];
 const CRISIS_THRESHOLD = 8;
 const OVERFLOW_LIMIT = 8;
 const RESCUE_COST = 1;
 const TREAT_COST = 2;
+function adoptQuota(p){return 1+(p.facilities?.length||0)}
+function adoptUsed(p){return p.adoptRound===game.round?(p.adoptUsed||0):0}
+function adoptInfo(p,d){
+ const origin=d.origin||'healthy';const bonus=game.currentEvent.adoptionBonus||0;
+ if(origin==='injured'){if(!facilityCount(p,'medical'))return {ok:false,label:'需醫療所',reason:'治癒的病犬只能從醫療所送養，請先興建醫療所。'};return {ok:true,channel:'醫療所',reward:1+bonus,label:`🏡 醫療所送養 · +$${1+bonus}`}}
+ if(origin==='alert'){if(!facilityCount(p,'training'))return {ok:false,label:'需訓練所',reason:'訓練過的凶犬只能從訓練所送養，請先興建訓犬基地。'};return {ok:true,channel:'訓練所',reward:1+bonus,label:`🏡 訓練所送養 · +$${1+bonus}`}}
+ const cafe=facilityCount(p,'cafe');const reward=1+cafe+bonus;
+ return {ok:true,channel:cafe?'咖啡廳':'基本',reward,label:`🏡 ${cafe?'咖啡廳':''}送養 · +$${reward}`}
+}
 function treatCost(p){return Math.max(0,TREAT_COST-facilityCount(p,'medical')-(game.currentEvent.treatDiscount||0))}
 const CRISIS_CARDS = [
  {id:'outbreak',title:'街頭疫病擴散',emoji:'🦠',desc:'街頭犬隻過度集中，傳染風險升高。'},
@@ -156,7 +165,7 @@ function el(id){return document.getElementById(id)}
 function esc(s){return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function shuffle(arr){const out=[...arr];for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
-function createDog(type,sprite,name){return {id:'D'+(game?game.nextDogId++:Math.floor(Math.random()*100000)),type,sprite,name:name||pick(DOG_NAMES),age:game?game.round:1}}
+function createDog(type,sprite,name){return {id:'D'+(game?game.nextDogId++:Math.floor(Math.random()*100000)),type,sprite,name:name||pick(DOG_NAMES),age:game?game.round:1,origin:type}}
 function makeStreetDog(type,sprite,name){const dog=createDog(type,sprite,name);return dog}
 function createInitialDogs(){
  const list=[['healthy',0,'奶茶'],['healthy',2,'豆豆'],['healthy',1,'小黑'],['injured',3,'斑斑'],['injured',4,'米米'],['alert',6,'阿虎']];
@@ -212,10 +221,13 @@ function requireShelter(){const p=active();if(!isShelter(p)){toast('這個行動
 function requireGov(){const p=active();if(!p||p.role!=='gov'){toast('這個行動只能由政府玩家執行。');return null}if(game.handoffPending){toast('請先開始本回合。');return null}return p}
 function rescueDog(id){const p=requireShelter();if(!p)return;const i=game.streetDogs.findIndex(d=>d.id===id);if(i<0)return;if(p.funds<RESCUE_COST){toast(`資金不足，收容需要 $${RESCUE_COST}。`);return}if(p.dogs.length>=capacity(p)){toast(`收容空間已滿（${capacity(p)} 隻），請先送養或擴建設施。`);return}p.funds-=RESCUE_COST;p.dogs.push(game.streetDogs.splice(i,1)[0]);addLog(`${p.name} 收容了一隻浪浪，花費 $${RESCUE_COST}。`);finishAction()}
 function adoptDog(id){const p=requireShelter();if(!p)return;const i=p.dogs.findIndex(d=>d.id===id);if(i<0)return;const dog=p.dogs[i];if(dog.type!=='healthy'){toast('這隻浪浪還需要先完成醫療或訓練。');return}
- const cafeCount=facilityCount(p,'cafe');const eventBonus=game.currentEvent.adoptionBonus||0;const moneyGain=5+cafeCount+eventBonus;const trustGain=1;
+ const info=adoptInfo(p,dog);if(!info.ok){toast(info.reason);return}
+ if(adoptUsed(p)>=adoptQuota(p)){toast(`本回合送養額度已用完（${adoptQuota(p)} 隻），興建設施可增加額度。`);return}
+ const moneyGain=info.reward;const trustGain=1;
+ p.adoptRound=game.round;p.adoptUsed=adoptUsed(p)+1;
  p.dogs.splice(i,1);p.adoptions++;game.totalAdoptions++;game.roundAdoptions++;p.funds+=moneyGain;game.players.gov.trust+=trustGain;
- const effects=[`收容所資金 +$${moneyGain}（基本 $5${cafeCount?` + ${cafeCount} 座咖啡廳 $${cafeCount}`:''}${eventBonus?` + 事件加成 $${eventBonus}`:''}）`,`政府公共信任 +${trustGain}`];
- addLog(`${p.name} 成功送養「${dog.name}」；${effects.join('、')}。`);finishAction();showAdoptionEffects(dog,effects)}
+ const effects=[`收容所資金 +$${moneyGain}（${info.channel}送養）`,`政府公共信任 +${trustGain}`];
+ addLog(`${p.name} 透過${info.channel}成功送養「${dog.name}」；${effects.join('、')}。`);finishAction();showAdoptionEffects(dog,effects)}
 function treatDog(id){const p=requireShelter();if(!p)return;const dog=p.dogs.find(d=>d.id===id);if(!dog||dog.type!=='injured')return;const medCount=facilityCount(p,'medical');const cost=treatCost(p);if(p.funds<cost){toast(`資金不足，治療需要 $${cost}。`);return}p.funds-=cost;dog.type='healthy';dog.sprite=pick([0,1,2]);const reward=1+medCount;p.funds+=reward;addLog(`${p.name} 治療了「${dog.name}」，花費 $${cost}，獲得獎勵 $${reward}。`);finishAction()}
 function trainDog(id){const p=requireShelter();if(!p)return;const dog=p.dogs.find(d=>d.id===id);if(!dog||dog.type!=='alert')return;const trainingCount=facilityCount(p,'training');const moneyCost=Math.max(0,2-trainingCount);if(p.funds<moneyCost){toast(`資金不足，訓練需要 $${moneyCost}。`);return}p.funds-=moneyCost;dog.type='healthy';dog.sprite=pick([0,1,2]);const reward=1+Math.max(0,trainingCount-1);p.funds+=reward;addLog(`${p.name} 訓練了「${dog.name}」，花費 $${moneyCost}、獲得獎勵 $${reward}。`);finishAction()}
 function fundraise(){const p=requireShelter();if(!p)return;if(p.lastFundraiseRound===game.round){toast('為避免無限刷取資金，募款宣傳每位玩家每回合限一次；其他行動仍可不限次數執行。');return}const gain=3+(game.currentEvent.fundraisingBonus||0);p.funds+=gain;p.lastFundraiseRound=game.round;addLog(`${p.name} 發起募款宣傳，獲得 $${gain}（本回合已募款）。`);finishAction()}
@@ -271,7 +283,7 @@ function startNextTurn(){game.handoffPending=false;el('handoffOverlay').classLis
 function showResults(){const scores=ORDER.map(id=>{const p=game.players[id];return {id,name:p.name,role:p.role==='gov'?'政府':'收容所',score:score(p),detail:p.role==='gov'?`公共信任 ${p.trust} · 政策介入 ${p.interventions+p.controlMeasures} · 送養 ${game.totalAdoptions}`:`送養 ${p.adoptions} · 設施 ${p.facilities.length} · 照護 ${p.careScore}`}}).sort((a,b)=>b.score-a.score);const top=scores[0].score;const winners=scores.filter(s=>s.score===top).map(s=>s.name).join('、');el('resultContent').innerHTML=`<div class="winner">🌟 本局最高分：${esc(winners)}（${top} 分）</div><table class="score-table"><thead><tr><th>排名</th><th>玩家</th><th>得分</th></tr></thead><tbody>${scores.map((s,i)=>`<tr><td>${i+1}</td><td><strong>${esc(s.name)}</strong><div class="muted">${esc(s.role)} · ${esc(s.detail)}</div></td><td><strong>${s.score}</strong></td></tr>`).join('')}</tbody></table><p class="tiny-note">本局一共成功送養 ${game.totalAdoptions} 隻浪浪；街頭還有 ${game.streetDogs.length} 隻浪浪等待協助。</p>`;el('resultTitle').textContent=game.failed?'遊戲提前結束！':'五回合結束！';el('resultDesc').textContent=game.failed?`街頭無法安置的浪浪達 ${game.streetDogs.length} 隻，超過 ${OVERFLOW_LIMIT} 隻，救援失控，遊戲直接結束。`:'一起看看這場救援行動的成果。';el('resultOverlay').classList.add('show')}
 function dogCardHTML(d,context,p){const s=STATUS[d.type];let actions='';if(context==='street'&&isShelter(p)){const ok=p.funds>=RESCUE_COST&&p.dogs.length<capacity(p)&&!game.handoffPending;actions=`<div class="dog-actions"><button class="btn green" ${ok?'':'disabled'} onclick="rescueDog('${d.id}')">＋ 收容 · $${RESCUE_COST}</button></div>`}
  if(context==='kennel'&&isShelter(p)){
-  if(d.type==='healthy')actions=`<div class="dog-actions"><button class="btn green" ${!game.handoffPending?'':'disabled'} onclick="adoptDog('${d.id}')">🏡 送養</button></div>`;
+  if(d.type==='healthy'){const info=adoptInfo(p,d);const can=info.ok&&adoptUsed(p)<adoptQuota(p)&&!game.handoffPending;actions=`<div class="dog-actions"><button class="btn green" ${can?'':'disabled'} onclick="adoptDog('${d.id}')">${info.ok?info.label:'🏡 '+info.label}</button></div>`}
   else if(d.type==='injured')actions=`<div class="dog-actions"><button class="btn blue" ${p.funds>=treatCost(p)&&!game.handoffPending?'':'disabled'} onclick="treatDog('${d.id}')">✚ 治療 · $${treatCost(p)}</button></div>`;
   else {const count=facilityCount(p,'training');const cost=Math.max(0,2-count);actions=`<div class="dog-actions"><button class="btn" ${p.funds>=cost&&!game.handoffPending?'':'disabled'} onclick="trainDog('${d.id}')">🦴 訓練 · $${cost}</button></div>`}
  }
@@ -297,7 +309,7 @@ function renderActivePanel(p){const root=el('activePanel');
   const usedFundraise=p.lastFundraiseRound===game.round;
   root.innerHTML=`<div class="panel-head"><div><h3>🏠 收容所經營</h3><div class="panel-sub">不限行動次數；可連續照護、建設與送養</div></div><span class="count-badge">${p.dogs.length} / ${capacity(p)} 隻</span></div><div class="resource-row"><div class="resource money"><div class="r-icon">💰</div><strong>${p.funds}</strong><span>資金</span></div>
   <div class="section-label">經營行動（不限次數，受資金與容量限制）</div><div class="action-grid"><button class="action-option" onclick="fundraise()" ${usedFundraise?'disabled':''}><span class="a-icon">📣</span><strong>募款宣傳</strong><span>${usedFundraise?'本回合已使用':'每回合限一次：獲得 $3'}</span></button><button class="action-option" onclick="el('facilityPanel').scrollIntoView({behavior:'smooth',block:'start'})"><span class="a-icon">🏗️</span><strong>設施建設</strong><span>右側選擇設施，可重複興建</span></button></div>
-  <div class="kennel-title">🐶 我的收容犬 <span>${p.dogs.length} 隻 · 容量 ${capacity(p)}</span></div><div class="shelter-dogs">${p.dogs.length?p.dogs.map(d=>dogCardHTML(d,'kennel',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">目前還沒有收容犬。<br>從左側街頭浪浪區選擇一隻開始救援吧！</div>'}</div><div class="shelter-board"><h4>收容所營運概況</h4><div class="shelter-stats"><div class="mini-stat"><strong>${p.adoptions}</strong><span>成功送養</span></div><div class="mini-stat"><strong>${p.careScore}</strong><span>照護分</span></div></div></div><div class="role-note">健康犬可送養；受傷犬先治療；警戒犬先訓練。每座設施都增加 1 隻容量上限，效果會隨數量累加。</div>`;
+  <div class="kennel-title">🐶 我的收容犬 <span>${p.dogs.length} 隻 · 容量 ${capacity(p)} · 本回合送養 ${adoptUsed(p)}/${adoptQuota(p)}</span></div><div class="shelter-dogs">${p.dogs.length?p.dogs.map(d=>dogCardHTML(d,'kennel',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">目前還沒有收容犬。<br>從左側街頭浪浪區選擇一隻開始救援吧！</div>'}</div><div class="shelter-board"><h4>收容所營運概況</h4><div class="shelter-stats"><div class="mini-stat"><strong>${p.adoptions}</strong><span>成功送養</span></div><div class="mini-stat"><strong>${p.careScore}</strong><span>照護分</span></div></div></div><div class="role-note">健康犬可送養；受傷犬先治療；警戒犬先訓練。每座設施都增加 1 隻容量上限，效果會隨數量累加。</div>`;
  }
 }
 function renderFacilities(p){el('facilityList').innerHTML=FACILITIES.map(f=>{const count=p.role==='shelter'?facilityCount(p,f.id):0;const canBuild=p.role==='shelter'&&p.funds>=f.cost&&!game.handoffPending;let button='';if(p.role==='shelter')button=`<div class="facility-count">🏡 已建 ${count} 座 · 容量 +${count}</div><button class="btn green" ${canBuild?'':'disabled'} onclick="buildFacility('${f.id}')">${count?'再建一座':'興建設施'} · $${f.cost}</button>`;else button='<span class="tiny-note">收容所專屬</span>';return `<div class="facility"><img src="${FACILITY_IMAGES[f.id]}" alt="${f.name}" loading="lazy"><div class="facility-content"><strong>${f.emoji} ${f.name}</strong><p>${f.effect}</p>${button}</div></div>`}).join('')}
@@ -305,7 +317,7 @@ function updateGrantButtons(){const btn=el('supBtn');const gov=game?.players?.go
 function showAdoptionEffects(dog,effects){el('effectTitle').textContent='領養成功！';el('effectDesc').textContent='效果已立即結算，不需要再點選其他按鈕。';el('effectDogName').textContent=`「${dog.name}」已找到新家`;el('effectDogImage').src=DOGS[dog.sprite];el('effectList').innerHTML=effects.map(item=>`<div class="impact-item"><span class="impact-check">✓</span><span>${esc(item)}</span></div>`).join('');el('effectOverlay').classList.add('show')}
 function closeEffectOverlay(){el('effectOverlay').classList.remove('show')}
 function drawCrisisCard(){const card={...pick(CRISIS_CARDS),triggerCount:game.streetDogs.length,triggerRound:game.round};let effect='';
- if(card.id==='outbreak'){const dog=game.streetDogs.length?pick(game.streetDogs):null;if(dog){dog.type='injured';dog.sprite=pick([3,4,5]);effect=`「${dog.name}」受到疫病影響，轉為需要醫療。`}else effect='街頭目前沒有浪浪，這次沒有新增傷病。'}
+ if(card.id==='outbreak'){const dog=game.streetDogs.length?pick(game.streetDogs):null;if(dog){dog.type='injured';dog.origin='injured';dog.sprite=pick([3,4,5]);effect=`「${dog.name}」受到疫病影響，轉為需要醫療。`}else effect='街頭目前沒有浪浪，這次沒有新增傷病。'}
  else if(card.id==='publicOutcry'){game.players.gov.trust-=2;effect='政府公共信任 -2。'}
  else if(card.id==='volunteerFatigue'){for(const id of ['s1','s2','s3'])game.players[id].funds=Math.max(0,game.players[id].funds-1);effect='三間收容所各損失 $1（最低為 0）。'}
  else if(card.id==='supplyShortage'){for(const id of ['s1','s2','s3'])game.players[id].funds=Math.max(0,game.players[id].funds-1);effect='三間收容所各損失 $1（最低為 0）。'}
