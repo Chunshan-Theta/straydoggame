@@ -15,6 +15,10 @@
 
 /* V0.2 revisions: compact role-specific views, unlimited actions, stacking facilities */
 .active-meta .action-dots{display:none}
+/* Declutter: hide secondary hints, keep core info */
+.panel-sub,.role-note,.footer-note,.stat-pills,.active-person p,.active-meta,.round-sub,.section-label,.tiny-note,.pill,.setup-hero p,.facility img{display:none!important}
+.facility{grid-template-columns:1fr;min-height:0}
+.resource-row{grid-template-columns:repeat(4,1fr)}
 .main-grid.gov-mode{grid-template-columns:minmax(0,1.25fr) minmax(300px,.85fr)}
 .main-grid.gov-mode #streetPanel,.main-grid.gov-mode #facilityPanel{display:none}
 .main-grid.gov-mode .right-col{display:contents}
@@ -310,12 +314,12 @@ function renderActivePanel(p){const root=el('activePanel');
   <div class="shelter-board"><h4>收容所即時概況</h4><div class="shelter-stats">${['s1','s2','s3'].map(id=>{const q=game.players[id];return `<div class="mini-stat"><strong>${q.dogs.length}/${capacity(q)}</strong><span>${esc(q.name)}</span><br><small>資金 $${q.funds}</small></div>`}).join('')}</div></div><div class="role-note">政府只能使用自己的政策區與行動紀錄；補助額由政府玩家自行決定，預算用完即不能再支出。</div>`;
   updateGrantButtons();
  } else {
-  const pend=game.pending||[];const full=p.dogs.length>=capacity(p);
-  const pendHTML=pend.length?`<div class="gov-action" style="background:#fff4de;border-color:#e6c98a"><strong>📥 安置流浪動物（必須處理）</strong><p>每回合抽到 2 隻流浪動物，安置免費並觸發特殊效果；不安置或無法安置的會送往流浪區。${full?'目前收容空間已滿，只能送往流浪區。':''}</p><div class="shelter-dogs">${pend.map(d=>dogCardHTML(d,'pending',p)).join('')}</div></div>`:'';
-  const quotas=['base','cafe','medical','training'].filter(k=>chQuota(p,k)>0).map(k=>`${CHANNELS[k].name}送養 ${chLeft(p,k)}/${chQuota(p,k)}`).concat(['treat','train'].filter(k=>chQuota(p,k)>0).map(k=>`${k==='treat'?'治療':'訓練'} ${chLeft(p,k)}/${chQuota(p,k)}`)).join('・');
-  root.innerHTML=`<div class="panel-head"><div><h3>🏠 收容所經營</h3><div class="panel-sub">不限行動次數；可連續照護、建設與送養</div></div><span class="count-badge">${p.dogs.length} / ${capacity(p)} 隻</span></div><div class="resource-row"><div class="resource money"><div class="r-icon">💰</div><strong>${p.funds}</strong><span>資金</span></div><div class="resource food"><div class="r-icon">🍚</div><strong>$${p.dogs.length}</strong><span>回合末餵食費</span></div></div>
-  ${pendHTML}
-  <div class="kennel-title">🐶 我的收容犬 <span>${p.dogs.length} 隻 · 容量 ${capacity(p)} · 本回合額度 ${quotas}</span></div><div class="shelter-dogs">${p.dogs.length?p.dogs.map(d=>dogCardHTML(d,'kennel',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">目前還沒有收容犬。</div>'}</div><div class="role-note">每隻收容犬每回合結束需 $1 餵食，資金不足的會被移到流浪區。</div>`;
+ const pend=game.pending||[];const full=p.dogs.length>=capacity(p);
+ const pendHTML=pend.length?`<div class="gov-action" style="background:#fff4de;border-color:#e6c98a"><strong>📥 安置流浪動物（必須處理）</strong><p>每回合抽到 2 隻流浪動物，安置免費並觸發特殊效果；不安置或無法安置的會送往流浪區。${full?'目前收容空間已滿，只能送往流浪區。':''}</p><div class="shelter-dogs">${pend.map(d=>dogCardHTML(d,'pending',p)).join('')}</div></div>`:'';
+ const quotas=['base','cafe','medical','training'].filter(k=>chQuota(p,k)>0).map(k=>`${CHANNELS[k].name}送養 ${chLeft(p,k)}/${chQuota(p,k)}`).concat(['treat','train'].filter(k=>chQuota(p,k)>0).map(k=>`${k==='treat'?'治療':'訓練'} ${chLeft(p,k)}/${chQuota(p,k)}`)).join('・');
+ root.innerHTML=`<div class="panel-head"><div><h3>🏠 收容所經營</h3><div class="panel-sub">不限行動次數；可連續照護、建設與送養</div></div><span class="count-badge">${p.dogs.length} / ${capacity(p)} 隻</span></div><div class="resource-row"><div class="resource money"><div class="r-icon">💰</div><strong>${p.funds}</strong><span>資金</span></div><div class="resource food"><div class="r-icon">🍚</div><strong>$${p.dogs.length}</strong><span>回合末餵食費</span></div></div>
+ ${pendHTML}
+ <div class="kennel-title">🐶 我的收容犬 <span>${p.dogs.length} 隻 · 容量 ${capacity(p)} · 本回合額度 ${quotas}</span></div><div class="shelter-dogs">${p.dogs.length?p.dogs.map(d=>dogCardHTML(d,'kennel',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">目前還沒有收容犬。</div>'}</div><div class="role-note">每隻收容犬每回合結束需 $1 餵食，資金不足的會被移到流浪區。</div>`;
  }
 }
 function renderFacilities(p){el('facilityList').innerHTML=FACILITIES.map(f=>{const count=p.role==='shelter'?facilityCount(p,f.id):0;const canBuild=p.role==='shelter'&&p.funds>=f.cost&&!game.handoffPending;let button='';if(p.role==='shelter')button=`<div class="facility-count">🏡 已建 ${count} 座 · 容量 +${count}</div><button class="btn green" ${canBuild?'':'disabled'} onclick="buildFacility('${f.id}')">${count?'再建一座':'興建設施'} · $${f.cost}</button>`;else button='<span class="tiny-note">收容所專屬</span>';return `<div class="facility"><img src="${FACILITY_IMAGES[f.id]}" alt="${f.name}" loading="lazy"><div class="facility-content"><strong>${f.emoji} ${f.name}</strong><p>${f.effect}</p>${button}</div></div>`}).join('')}
@@ -332,7 +336,7 @@ function drawCrisisCard(base){const card={...(base||pick(CRISIS_CARDS)),triggerC
 }
 function showCrisis(card){el('crisisEmoji').textContent=card.emoji;el('crisisTitle').textContent=card.title;el('crisisThresholdText').textContent=`第 ${card.triggerRound||game.round} 回合協調結束後，街頭未安置浪浪 ${card.triggerCount??game.streetDogs.length} 隻，依數量翻出 ${card.count??1} 張危機卡。${card.desc}`;el('crisisEffect').innerHTML=`<div class="impact-item"><span class="impact-check">!</span><span>${esc(card.effect)}</span></div>`;el('crisisOverlay').classList.add('show')}
 function dismissCrisis(){el('crisisOverlay').classList.remove('show');const next=game?.crisisNext;game.crisisNext=null;saveState();if(next==='results')showResults();else if(next==='handoff')showHandoff()}
-function renderLog(){el('actionLog').innerHTML=game.log.slice(0,12).map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
+function renderLog(){el('actionLog').innerHTML=game.log.slice(0,5).map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
 function showSetupRulesHint(){toast('請使用上方「遊戲規則」查看規則。')}
 // Friendly local setup: if a saved game exists, offer to resume it.
 checkResume();
