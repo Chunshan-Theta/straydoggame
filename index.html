@@ -181,7 +181,7 @@ function newGame(names,controllers){
   s1:{id:'s1',role:'shelter',name:names[1]||'暖心收容所',funds:0,adoptions:0,dogs:[],facilities:[]},
   s2:{id:'s2',role:'shelter',name:names[2]||'毛孩之家',funds:0,adoptions:0,dogs:[],facilities:[]},
   s3:{id:'s3',role:'shelter',name:names[3]||'希望中途站',funds:0,adoptions:0,dogs:[],facilities:[]}
- },controllers:controllers||{gov:'human',s1:'human',s2:'human',s3:'human'},flowVersion:2,streetDogs:[],nextDogId:1,totalAdoptions:0,roundAdoptions:0,governmentCapacityBonus:0,publicInterventions:0,pending:[],drawnKey:'',log:[],handoffPending:false,finished:false,crisisNext:null,lastCrisis:null,prevStreet:0};
+ },controllers:controllers||{gov:'human',s1:'human',s2:'human',s3:'human'},affinity:{s1:0,s2:1,s3:0},flowVersion:2,streetDogs:[],nextDogId:1,totalAdoptions:0,roundAdoptions:0,governmentCapacityBonus:0,publicInterventions:0,pending:[],drawnKey:'',log:[],handoffPending:false,finished:false,crisisNext:null,lastCrisis:null,prevStreet:0};
  game.streetDogs=createInitialDogs();
  game.prevStreet=game.streetDogs.length;
  addLog('遊戲開始！政府開局預算 $30，先進行補助環節。');drawArrivals();
@@ -200,6 +200,14 @@ function isShelter(p){return p && p.role==='shelter'}
 function facilityCount(p,id){return (p.facilities||[]).filter(x=>x===id).length}
 function capacity(p){return 3+(p.facilities?.length||0)+game.governmentCapacityBonus}
 function countType(dogs,type){return dogs.filter(d=>d.type===type).length}
+function crisisUrgency(){
+ const stray=game.streetDogs.length;
+ const ending=game.round===4?stray*.15:game.round===5?stray*.35:0;
+ return Math.min(1.5,stray/8+ending);
+}
+function shelterAffinity(id){game.affinity=game.affinity||{s1:0,s2:1,s3:0};return game.affinity[id]||0}
+function changeAffinity(id,amount){game.affinity=game.affinity||{s1:0,s2:1,s3:0};game.affinity[id]=Math.max(-5,Math.min(5,shelterAffinity(id)+amount))}
+function adoptionCapacity(p){return 1+facilityCount(p,'cafe')+facilityCount(p,'medical')+facilityCount(p,'training')}
 function score(p){
  if(p.role==='gov')return p.funds;
  return p.funds;
@@ -224,11 +232,11 @@ function showSetupRulesHint(){toast('可以先設定玩家名稱，再開始新�
 function spendAP(){return true}
 function requireShelter(allowPending){const p=active();if(!isShelter(p)){toast('這個行動只能由收容所玩家執行。');return null}if(game.handoffPending){toast('請先開始本回合。');return null}if(!allowPending&&game.pending?.length){toast('請先處理抽到的流浪動物（安置或送往流浪區）。');return null}return p}
 function requireGov(){const p=active();if(!p||p.role!=='gov'){toast('這個行動只能由政府玩家執行。');return null}if(game.turnIndex!==TURNS.length-1){toast('政府只能在協調環節出資支援。');return null}if(game.handoffPending){toast('請先開始本回合。');return null}return p}
-function placeDog(p,dog,source){p.dogs.push(dog);const t=TRAITS[dog.trait];let note='';if(t){note=`｜${t.name}：${t.apply(p,dog)}`}addLog(`${p.name} 安置了「${dog.name}」${source}${note}。`);if(t)toast(`${t.name}效果觸發：${t.desc}`)}
+function placeDog(p,dog,source){p.dogs.push(dog);const t=TRAITS[dog.trait];let note='';if(t){note=`｜${t.name}：${t.apply(p,dog)}`;if(p.role==='shelter'&&dog.trait==='media')changeAffinity(p.id,1)}if(p.role==='shelter'&&(dog.origin==='injured'||dog.origin==='alert')&&!source.includes('政府協調'))changeAffinity(p.id,1);addLog(`${p.name} 安置了「${dog.name}」${source}${note}。`);if(t)toast(`${t.name}效果觸發：${t.desc}`)}
 function drawArrivals(){const key=`${game.round}-${game.turnIndex}`;if(game.drawnKey===key)return;game.drawnKey=key;const p=active();game.pending=isShelter(p)?[generateStreetDog(),generateStreetDog()]:[];if(game.pending.length)addLog(`${p.name} 抽到 2 隻流浪動物。`)}
 function canHouse(p,dog){return p.dogs.length<capacity(p)&&((dog.type!=='injured'||facilityCount(p,'medical')>0)&&(dog.type!=='alert'||facilityCount(p,'training')>0))}
 function placeDrawn(id){const p=requireShelter(true);if(!p)return;const i=(game.pending||[]).findIndex(d=>d.id===id);if(i<0)return;const dog=game.pending[i];if(!canHouse(p,dog)){toast(dog.type==='injured'&&!facilityCount(p,'medical')?'需要先有醫療所才能安置病犬。':dog.type==='alert'&&!facilityCount(p,'training')?'需要先有訓犬基地才能安置凶犬。':`收容空間已滿（${capacity(p)} 隻），無法安置。`);return}game.pending.splice(i,1);placeDog(p,dog,'');finishAction()}
-function declineDrawn(id){const p=requireShelter(true);if(!p)return;const i=(game.pending||[]).findIndex(d=>d.id===id);if(i<0)return;const dog=game.pending.splice(i,1)[0];game.streetDogs.push(dog);addLog(`${p.name} 未安置「${dog.name}」，牠被送往流浪區。`);finishAction()}
+function declineDrawn(id){const p=requireShelter(true);if(!p)return;const i=(game.pending||[]).findIndex(d=>d.id===id);if(i<0)return;const dog=game.pending.splice(i,1)[0];game.streetDogs.push(dog);if(canHouse(p,dog)&&p.funds>0)changeAffinity(p.id,-1);addLog(`${p.name} 未安置「${dog.name}」，牠被送往流浪區。`);finishAction()}
 function rescueDog(id){const p=requireShelter();if(!p)return;const i=game.streetDogs.findIndex(d=>d.id===id);if(i<0)return;const dog=game.streetDogs[i];if(!canHouse(p,dog)){toast(dog.type==='injured'&&!facilityCount(p,'medical')?'需要先有醫療所才能安置病犬。':dog.type==='alert'&&!facilityCount(p,'training')?'需要先有訓犬基地才能安置凶犬。':`收容空間已滿（${capacity(p)} 隻），請先送養或擴建設施。`);return}placeDog(p,game.streetDogs.splice(i,1)[0],'（來自流浪區）');finishAction()}
 function adoptDog(id,key){const p=requireShelter();if(!p)return;const i=p.dogs.findIndex(d=>d.id===id);if(i<0)return;const dog=p.dogs[i];if(dog.type!=='healthy'){toast('這隻浪浪還需要先完成醫療或訓練。');return}
  const c=CHANNELS[key];if(!c||!dogChannels(p,dog).includes(key)){toast('這隻浪浪不能從這個管道送養。');return}
@@ -242,7 +250,7 @@ function adoptDog(id,key){const p=requireShelter();if(!p)return;const i=p.dogs.f
 function treatDog(id){const p=requireShelter();if(!p)return;const dog=p.dogs.find(d=>d.id===id);if(!dog||dog.type!=='injured')return;if(chQuota(p,'treat')<1){toast('需要至少一座醫療所才能治療。');return}if(chLeft(p,'treat')<1){toast('本回合醫療所治療額度已用完，興建更多醫療所可增加額度。');return}if(p.funds<TREAT_COST){toast(`資金不足，治療需要 $${TREAT_COST}。`);return}p.funds-=TREAT_COST;useQuota(p,'treat');dog.type='healthy';dog.sprite=pick([0,1,2]);addLog(`${p.name} 治療了「${dog.name}」，花費 $${TREAT_COST}。`);finishAction()}
 function trainDog(id){const p=requireShelter();if(!p)return;const dog=p.dogs.find(d=>d.id===id);if(!dog||dog.type!=='alert')return;if(chQuota(p,'train')<1){toast('需要至少一座訓練所才能訓練。');return}if(chLeft(p,'train')<1){toast('本回合訓練所訓練額度已用完，興建更多訓犬基地可增加額度。');return}if(p.funds<TRAIN_COST){toast(`資金不足，訓練需要 $${TRAIN_COST}。`);return}p.funds-=TRAIN_COST;useQuota(p,'train');dog.type='healthy';dog.sprite=pick([0,1,2]);addLog(`${p.name} 訓練了「${dog.name}」，花費 $${TRAIN_COST}。`);finishAction()}
 
-function buildFacility(id,allowPending=false){const p=requireShelter(allowPending);if(!p)return;const f=FACILITIES.find(x=>x.id===id);if(!f)return;if(p.funds<f.cost){toast(`資金不足，興建「${f.name}」需要 $${f.cost}。`);return}p.funds-=f.cost;p.facilities.push(id);const count=facilityCount(p,id);addLog(`${p.name} 興建第 ${count} 座「${f.name}」，收容容量 +1，該設施效果同步提升。`);finishAction()}
+function buildFacility(id,allowPending=false){const p=requireShelter(allowPending);if(!p)return;const f=FACILITIES.find(x=>x.id===id);if(!f)return;if(p.funds<f.cost){toast(`資金不足，興建「${f.name}」需要 $${f.cost}。`);return}p.funds-=f.cost;p.facilities.push(id);changeAffinity(p.id,1);const count=facilityCount(p,id);addLog(`${p.name} 興建第 ${count} 座「${f.name}」，收容容量 +1，該設施效果同步提升。`);finishAction()}
 function govSupport(){const p=requireGov();if(!p)return;const target=game.players[el('supTarget')?.value];if(!target||target.role!=='shelter')return;
  const amount=Math.max(0,Math.floor(Number(el('supAmount')?.value||0)));const fac=FACILITIES.find(x=>x.id===el('supFacility')?.value);const dogId=el('supDog')?.value;
  const total=amount+(fac?fac.cost:0);
@@ -307,56 +315,149 @@ function endTurn(){
 function runNpcTurn(){
  if(!game||game.finished||game.handoffPending||!isNPC(active().id))return;
  const p=active();
- if(p.role==='gov'&&game.turnIndex===0){endTurn();return}
- if(p.role==='shelter'){
-  for(const dog of [...(game.pending||[])]){
-   if(!canHouse(p,dog)&&dog.type==='injured'&&!facilityCount(p,'medical')&&p.funds>=p.dogs.length+1)buildFacility('medical',true);
-   if(!canHouse(p,dog)&&dog.type==='alert'&&!facilityCount(p,'training')&&p.funds>=p.dogs.length+1)buildFacility('training',true);
-   if(!canHouse(p,dog)&&p.dogs.length>=capacity(p)&&p.funds>=p.dogs.length+1)buildFacility('medical',true);
-   if(canHouse(p,dog))placeDrawn(dog.id);else declineDrawn(dog.id);
-  }
-  for(const dog of [...p.dogs]){
-   if(dog.type==='injured'&&facilityCount(p,'medical')===0&&p.funds>=p.dogs.length+1)buildFacility('medical');
-   if(dog.type==='alert'&&facilityCount(p,'training')===0&&p.funds>=p.dogs.length+1)buildFacility('training');
-   if(dog.type==='injured'&&chLeft(p,'treat')>0&&p.funds>=p.dogs.length+TREAT_COST)treatDog(dog.id);
-   if(dog.type==='alert'&&chLeft(p,'train')>0&&p.funds>=p.dogs.length+TRAIN_COST)trainDog(dog.id);
-  }
- }else{
-  npcGovernmentTurn(p);
- }
+ if(p.role==='gov'&&game.turnIndex===0)npcGovernmentSubsidy(p);
+ else if(p.role==='shelter')npcShelterTurn(p);
+ else npcGovernmentTurn(p);
  if(game.pending?.length){toast('NPC 行動未能完成抽取動物處理。');return}
  endTurn();
 }
+function npcShelterTurn(p){
+ const urgency=crisisUrgency();
+ for(const dog of [...(game.pending||[])]){
+  let requiredFacility=dog.type==='injured'?'medical':dog.type==='alert'?'training':null;
+  if(requiredFacility&&!facilityCount(p,requiredFacility)){
+   const canBuild=p.funds>=p.dogs.length+1+(requiredFacility?1:0);
+   const canInvest=dog.type==='healthy'?game.round<=3&&p.funds>=p.dogs.length+3:canBuild&&(p.funds>=4&&urgency>=.6);
+   if(canInvest)buildFacility(requiredFacility||'cafe',true);
+  }else if(dog.type==='healthy'&&p.dogs.length>=capacity(p)&&game.round<=3&&p.funds>=p.dogs.length+2){
+   buildFacility('cafe',true);
+  }
+  if(dog.type!=='healthy'){
+   const delta=requiredFacility&&facilityCount(p,requiredFacility)?-1:-2;
+   const score=delta+.5+urgency*2*(p.id==='s2'?1.3:1);
+   const canFeed=p.funds>=1;
+   const canTreat=p.funds>=2;
+   if((delta===-1&&(!canTreat||score<0)&&!(urgency>=.75&&canFeed))||
+      (delta===-2&&!(p.funds>=4&&urgency>=.6))){
+    declineDrawn(dog.id);continue;
+   }
+  }
+  if(canHouse(p,dog)){
+   placeDrawn(dog.id);
+  }else declineDrawn(dog.id);
+ }
+ for(const dog of [...p.dogs]){
+  if(dog.type==='injured'&&facilityCount(p,'medical')===0&&p.funds>=p.dogs.length+2)buildFacility('medical');
+  if(dog.type==='alert'&&facilityCount(p,'training')===0&&p.funds>=p.dogs.length+2)buildFacility('training');
+  const adoptionReady=dog.type==='injured'?chLeft(p,'treat')>0:chLeft(p,'train')>0;
+  const foodReserve=Math.max(0,p.dogs.length-(adoptionReady?1:0));
+  if(dog.type==='injured'&&chLeft(p,'treat')>0&&p.funds>=foodReserve+TREAT_COST){treatDog(dog.id);continue}
+  if(dog.type==='alert'&&chLeft(p,'train')>0&&p.funds>=foodReserve+TRAIN_COST){trainDog(dog.id);continue}
+ }
+ const healthyCount=p.dogs.filter(d=>d.type==='healthy').length;
+ while(game.round<=3&&(healthyCount>adoptionCapacity(p)||!facilityCount(p,'cafe'))&&p.funds>=p.dogs.length+2)buildFacility('cafe');
+ if(game.round>=4&&p.funds>=8){
+  if(!facilityCount(p,'medical')&&p.dogs.some(d=>d.type==='injured'))buildFacility('medical');
+  if(!facilityCount(p,'training')&&p.dogs.some(d=>d.type==='alert'))buildFacility('training');
+ }
+}
+function npcGovernmentSubsidy(gov){
+ const shelters=['s1','s2','s3'].map(id=>game.players[id]);
+ if(game.round===1){
+  for(const target of shelters){
+   const grant=Math.min(2,gov.funds);
+   if(grant){gov.funds-=grant;target.funds+=grant;addLog(`${gov.name} 發放開局補助 $${grant} 給 ${target.name}。`)}
+  }
+  return;
+ }
+ const urgency=crisisUrgency();
+ shelters.sort((a,b)=>shelterAffinity(b.id)-shelterAffinity(a.id)||a.funds-b.funds);
+ for(const target of shelters){
+  const existingTreatment=countType(target.dogs,'injured')+countType(target.dogs,'alert');
+  const feeding=Math.max(0,target.dogs.length+2-adoptionCapacity(target));
+  const riskReserve=(!facilityCount(target,'medical')||!facilityCount(target,'training')?1:0)+(capacity(target)-target.dogs.length<2?1:0);
+  let need=Math.max(0,existingTreatment*TREAT_COST+feeding+riskReserve-target.funds);
+  if(target.funds>=gov.funds||(target.funds>=6&&target.funds>=Math.max(...shelters.map(s=>s.funds))))need=0;
+  if(shelterAffinity(target.id)<0&&urgency<.5)need=Math.min(need,Math.max(0,target.dogs.length-target.funds));
+  let grant=Math.min(3,need,gov.funds);
+  if(shelterAffinity(target.id)>=2&&gov.funds>=15)grant=Math.min(grant+1,gov.funds);
+  if(grant){gov.funds-=grant;target.funds+=grant;addLog(`${gov.name} 依收容需求與合作紀錄補助 ${target.name} $${grant}。`)}
+ }
+}
 function npcGovernmentTurn(gov){
+ const urgency=crisisUrgency();
+ const roundEndTarget=game.round===5?0:game.streetDogs.length>4?4:2;
  let attempts=0;
- while(gov.funds>0&&game.streetDogs.length&&attempts++<30){
+ while(gov.funds>0&&game.streetDogs.length>roundEndTarget&&attempts++<30){
+  const dogs=[...game.streetDogs].sort((a,b)=>npcDogPriority(a)-npcDogPriority(b));
   let choice=null;
-  for(const dog of game.streetDogs){
+  for(const dog of dogs){
+   const candidates=[];
    for(const id of ['s1','s2','s3']){
     const target=game.players[id];
-    let facility=null;
-    if(dog.type==='injured'&&!facilityCount(target,'medical'))facility=FACILITIES.find(f=>f.id==='medical');
-    else if(dog.type==='alert'&&!facilityCount(target,'training'))facility=FACILITIES.find(f=>f.id==='training');
-    else if(target.dogs.length>=capacity(target))facility=FACILITIES.find(f=>f.id==='medical');
-    if(facility&&gov.funds<facility.cost)continue;
-    const grant=Math.min(Math.max(1,target.dogs.length+1-target.funds),gov.funds-(facility?.cost||0));
-    if(!facility&&!grant)continue;
-    choice={dog,target,facility,grant};break;
+    let facilityIds=[];
+    const required=dog.type==='injured'?'medical':dog.type==='alert'?'training':null;
+    if(required&&!facilityCount(target,required))facilityIds.push(required);
+    const extraSpace=dog.trait==='mother'?2:1;
+    let projectedCapacity=capacity(target)+facilityIds.length;
+    while(target.dogs.length+extraSpace>projectedCapacity&&facilityIds.length<3){
+     const next=facilityIds.includes('cafe')?'medical':'cafe';
+     facilityIds.push(next);projectedCapacity++;
+    }
+    if(target.dogs.length+1>projectedCapacity)continue;
+    const facilityCost=facilityIds.reduce((sum,id)=>sum+(FACILITIES.find(f=>f.id===id)?.cost||0),0);
+    if(facilityCost>gov.funds)continue;
+    const cashAfterStar=target.funds+(dog.trait==='star'?2:0);
+    const treatmentReserve=dog.type==='healthy'?0:TREAT_COST;
+    const likelyAutoAdopt=dog.type==='healthy'&&adoptionCapacity(target)>0;
+    const foodReserve=target.dogs.length+(likelyAutoAdopt?0:1);
+    let grant=Math.max(0,foodReserve+treatmentReserve-cashAfterStar);
+    if(dog.type==='healthy'&&likelyAutoAdopt)grant=Math.max(0,target.dogs.length-target.funds);
+    if(dog.type!=='healthy'&&dog.trait==='star')grant=Math.max(0,foodReserve+TREAT_COST-cashAfterStar);
+    if(id==='s3'&&gov.funds>=15&&dog.type!=='healthy')grant++;
+    const total=facilityCost+grant;
+    if(total>gov.funds)continue;
+    if(game.round<5&&dog.type!=='healthy'&&total>3&&urgency<.75)continue;
+    const adoptionReward=dog.type==='healthy'?1:1;
+    const traitValue=dog.trait==='star'?2:dog.trait==='mother'?1:0;
+    const facilityValue=facilityIds.reduce((sum,id)=>sum+(id==='cafe'?1.5:.5),0);
+    const leading=Math.max(...ORDER.filter(pid=>pid!=='gov').map(pid=>game.players[pid].funds));
+    const leadPenalty=dog.trait==='media'&&gov.funds>=leading?1:0;
+    const archetypeScale=id==='s2'?1.3:1;
+    const leadScale=id==='s3'?1.5:1;
+    const net=grant+adoptionReward+traitValue-treatmentReserve-foodReserve+facilityValue;
+    const acceptScore=net+(1.5*urgency*archetypeScale)-leadPenalty*leadScale;
+    if(acceptScore<0)continue;
+    candidates.push({dog,target,facilityIds,grant,total,acceptScore});
    }
-   if(choice)break;
+   candidates.sort((a,b)=>a.total-b.total||shelterAffinity(b.target.id)-shelterAffinity(a.target.id)||a.target.funds-b.target.funds);
+   if(candidates.length){choice=candidates[0];break}
   }
   if(!choice)break;
-  const {dog,target,facility,grant}=choice;const cost=(facility?.cost||0)+grant;
-  gov.funds-=cost;
-  if(facility){target.facilities.push(facility.id);addLog(`${gov.name} 出資 $${facility.cost} 為 ${target.name} 興建「${facility.name}」。`)}
+  const {dog,target,facilityIds,grant,total}=choice;
+  gov.funds-=total;
+  for(const id of facilityIds){
+   target.facilities.push(id);
+   const facility=FACILITIES.find(f=>f.id===id);
+   addLog(`${gov.name} 出資 $${facility.cost} 為 ${target.name} 興建「${facility.name}」。`);
+  }
   if(grant)target.funds+=grant;
   const index=game.streetDogs.findIndex(item=>item.id===dog.id);
   if(index>=0&&canHouse(target,dog)){
-   const adopted=game.streetDogs.splice(index,1)[0];placeDog(target,adopted,'（政府協調）');
+   const adopted=game.streetDogs.splice(index,1)[0];
+   placeDog(target,adopted,'（政府協調）');
+   changeAffinity(target.id,1);
    addLog(`${gov.name} 補助 ${target.name} $${grant} 並協調安置「${adopted.name}」。`);
-  }else if(grant)addLog(`${gov.name} 補助 ${target.name} $${grant}。`);
+  }
   gov.interventions++;game.publicInterventions++;
  }
+}
+function npcDogPriority(dog){
+ if(dog.trait==='media')return 0;
+ if(dog.trait==='mother')return 1;
+ if(dog.type==='healthy'&&dog.trait!=='star')return 2;
+ if(dog.trait==='star')return 3;
+ return 4;
 }
 function failGame(){game.finished=true;game.handoffPending=false;game.failed=true;game.crisisNext=null;addLog(`街頭浪浪達 ${game.streetDogs.length} 隻，超過 ${OVERFLOW_LIMIT} 隻，遊戲結束。`);saveState();render();showResults()}
 function showHandoff(){const p=active();el('handoffIcon').textContent=p.role==='gov'?'🏛️':'🐾';el('handoffTitle').textContent=`請交棒給「${p.name}」`;el('handoffDesc').textContent=`第 ${game.round} / ${MAX_ROUNDS} 回合｜${p.role==='gov'?(game.turnIndex===0?'政府補助環節：確認預算後交棒給收容所 1。':'政府協調環節：補助收容所、安排安置流浪動物，完成後進入回合結算。'):'收容所回合：逐一處理抽到的流浪動物，再照顧收容中的浪浪。'}`;el('handoffSummary').innerHTML=p.role==='gov'?'<div class="rule-icon">🏛️</div><div><strong>你的任務：協調環節</strong><span>出資替特定收容所蓋設施、給予經費，或兩者並行，並提案讓它收容未安置的流浪犬；確認後自動送養、餵食、補充預算與翻開危機卡。</span></div>':'<div class="rule-icon">🐕</div><div><strong>你的任務：照顧收容中的浪浪</strong><span>先處理本回合抽到的 2 隻浪浪，再治療、訓練或興建設施；符合資格的動物將在回合結束時自動送養。</span></div>';el('handoffOverlay').classList.add('show')}
