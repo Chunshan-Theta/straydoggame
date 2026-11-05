@@ -41,6 +41,21 @@
 .adoption-dog-row span{font-size:12px;color:var(--muted)}
 @media(max-width:1100px){.main-grid.gov-mode{grid-template-columns:minmax(0,1fr) minmax(270px,.8fr)}.main-grid.gov-mode .right-col{display:contents}}
 @media(max-width:720px){.main-grid.gov-mode{grid-template-columns:1fr}.grant-control{grid-template-columns:1fr}.main-grid.gov-mode #activePanel,.main-grid.gov-mode #logPanel{grid-column:1}.adoption-dog-row img{width:64px;height:64px}}
+@media(max-width:720px){
+ body{font-size:17px}
+ .btn{min-height:44px;font-size:15px}
+ .btn.small{min-height:40px;font-size:14px}
+ .field label,.pt-role,.pt-score,.panel-sub,.count-badge,.section-label,.role-note,.resource span,.dog-trait,.dog-state,.dog-actions .btn,.action-option strong,.action-option span,.facility-content strong,.facility-content p,.facility-content .btn,.facility-count,.mini-stat span,.gov-action p,.grant-control label,.grant-control select,.grant-control input,.target-btn,.empty-state,.log-item,.log-time,.tiny-note,.footer-note,.pill,.kennel-title,.setup p,.modal p,.rule-item strong,.rule-item span,.score-table th,.score-table td{font-size:14px}
+ .panel-head h3{font-size:19px}
+ .dog-name{font-size:16px}
+ .action-option{padding:12px}
+ .log{max-height:45vh;min-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+ .log-item{grid-template-columns:44px 1fr;gap:10px;padding-bottom:10px}
+ .log-text{line-height:1.55}
+ .dog-actions .btn{min-height:44px}
+ .modal .btn{min-height:48px}
+ .field input,.field select{font-size:16px}
+}
 
 </style>
 </head>
@@ -103,6 +118,7 @@
   </main>
 </div>
 <div class="overlay" id="handoffOverlay"><div class="modal"><div class="modal-icon" id="handoffIcon">🤝</div><div class="kicker">PASS THE DEVICE</div><h2 id="handoffTitle">請交給下一位玩家</h2><p id="handoffDesc">請把裝置交給下一位玩家，準備開始回合。</p><div id="handoffSummary" class="rule-item"><div class="rule-icon">🎯</div><div><strong>輪到你了</strong><span>閱讀自己的行動目標，準備照顧浪浪。</span></div></div><button class="btn primary block" onclick="startNextTurn()">我準備好了，開始回合 →</button></div></div>
+<div class="overlay" id="govConsentOverlay"><div class="modal"><div class="modal-icon">🤝</div><div class="kicker">GOVERNMENT COORDINATION</div><h2 id="govConsentTitle">政府協調提案</h2><p id="govConsentDesc"></p><button class="btn green block" onclick="respondToNpcGovernmentOffer(true)">同意安置</button><button class="btn block" onclick="respondToNpcGovernmentOffer(false)">拒絕提案</button></div></div>
 <div class="overlay" id="rulesOverlay"><div class="modal"><div class="modal-icon">📖</div><h2>快速規則</h2><p>這份原型把部分數值先做成可試玩的版本，適合先跑一局檢查流程。</p><div class="rule-grid">
   <div class="rule-item"><div class="rule-icon">🔄</div><div><strong>回合順序與 NPC 模式</strong><span>每回合依序為政府補助環節、收容所 1、2、3，最後是政府「協調環節」，共 5 回合。設定時可逐席指定真人或 NPC；NPC 會自動處理該回合並遵守相同的資金、空間與設施限制。</span></div></div>
   <div class="rule-item"><div class="rule-icon">📥</div><div><strong>1. 安置流浪動物（必做、免費）</strong><span>輪到收容所時抽 2 隻流浪動物，必須逐隻處理：安置（需有空間及對應醫療所／訓犬基地，並觸發動物特殊效果）或送往流浪區。特殊效果在安置前隱藏；處理完才能進行其他行動或結束回合。</span></div></div>
@@ -181,7 +197,7 @@ function newGame(names,controllers){
   s1:{id:'s1',role:'shelter',name:names[1]||'暖心收容所',funds:0,adoptions:0,dogs:[],facilities:[]},
   s2:{id:'s2',role:'shelter',name:names[2]||'毛孩之家',funds:0,adoptions:0,dogs:[],facilities:[]},
   s3:{id:'s3',role:'shelter',name:names[3]||'希望中途站',funds:0,adoptions:0,dogs:[],facilities:[]}
- },controllers:controllers||{gov:'human',s1:'human',s2:'human',s3:'human'},affinity:{s1:0,s2:1,s3:0},flowVersion:2,streetDogs:[],nextDogId:1,totalAdoptions:0,roundAdoptions:0,governmentCapacityBonus:0,publicInterventions:0,pending:[],drawnKey:'',log:[],handoffPending:false,finished:false,crisisNext:null,lastCrisis:null,prevStreet:0};
+ },controllers:controllers||{gov:'human',s1:'human',s2:'human',s3:'human'},affinity:{s1:0,s2:1,s3:0},flowVersion:2,streetDogs:[],nextDogId:1,totalAdoptions:0,roundAdoptions:0,governmentCapacityBonus:0,publicInterventions:0,pending:[],pendingGovOffer:null,rejectedGovOffers:[],drawnKey:'',log:[],handoffPending:false,finished:false,crisisNext:null,lastCrisis:null,prevStreet:0};
  game.streetDogs=createInitialDogs();
  game.prevStreet=game.streetDogs.length;
  addLog('遊戲開始！政府開局預算 $30，先進行補助環節。');drawArrivals();
@@ -212,7 +228,7 @@ function score(p){
  if(p.role==='gov')return p.funds;
  return p.funds;
 }
-function addLog(message){if(!game)return;game.log.unshift({round:game.round,message});game.log=game.log.slice(0,40)}
+function addLog(message){if(!game)return;game.log.unshift({round:game.round,message})}
 function toast(msg){const t=el('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
 function saveState(){if(game){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(game))}catch(e){}}}
 function saveAndToast(){saveState();toast('進度已儲存在這個瀏覽器。')}
@@ -221,7 +237,7 @@ function startGame(){
  const controllers={gov:el('controlGov').value,s1:el('control1').value,s2:el('control2').value,s3:el('control3').value};
  game=newGame(names,controllers);saveState();render();toast('遊戲開始！由政府補助環節開始。');if(isNPC(active().id))setTimeout(runNpcTurn,250);
 }
-function resumeGame(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;game=JSON.parse(raw);if(!game.players||!game.streetDogs)throw new Error('bad save');game.controllers=game.controllers||{gov:'human',s1:'human',s2:'human',s3:'human'};game.handoffPending=false;if(!game.drawnKey||game.drawnKey!==`${game.round}-${game.turnIndex}`)drawArrivals();render();toast('已載入上次的遊戲進度。');if(isNPC(active().id))setTimeout(runNpcTurn,250)}catch(e){toast('讀取存檔失敗，請開始新遊戲。')}}
+function resumeGame(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;game=JSON.parse(raw);if(!game.players||!game.streetDogs)throw new Error('bad save');game.controllers=game.controllers||{gov:'human',s1:'human',s2:'human',s3:'human'};game.pendingGovOffer=game.pendingGovOffer||null;game.rejectedGovOffers=game.rejectedGovOffers||[];game.handoffPending=false;if(!game.drawnKey||game.drawnKey!==`${game.round}-${game.turnIndex}`)drawArrivals();render();toast('已載入上次的遊戲進度。');if(isNPC(active().id)&&!game.pendingGovOffer)setTimeout(runNpcTurn,250)}catch(e){toast('讀取存檔失敗，請開始新遊戲。')}}
 function restartGame(){if(!confirm('確定要放棄目前進度並重新開始嗎？'))return;localStorage.removeItem(STORAGE_KEY);game=null;el('gameApp').style.display='none';el('setup').style.display='block';el('handoffOverlay').classList.remove('show');el('resultOverlay').classList.remove('show');checkResume();}
 function newGameFromResult(){localStorage.removeItem(STORAGE_KEY);game=null;el('resultOverlay').classList.remove('show');el('gameApp').style.display='none';el('setup').style.display='block';checkResume();window.scrollTo({top:0,behavior:'smooth'})}
 function closeResult(){el('resultOverlay').classList.remove('show')}
@@ -299,9 +315,10 @@ function prepareNextRound(){
 }
 function endTurn(){
  if(!game||game.finished)return;
+ if(game.pendingGovOffer){toast('請先等待收容所玩家同意或拒絕政府協調提案。');return}
  if(game.handoffPending){toast('請先開始目前玩家的回合。');return}
  if(game.pending?.length){toast('請先處理抽到的流浪動物（安置或送往流浪區）。');return}
- const current=active();addLog(`${current.name} 結束回合。`);let crisis=null;
+ const current=active();addLog(`${current.name} 結束回合。`);game.rejectedGovOffers=[];let crisis=null;
  if(game.turnIndex===TURNS.length-1){
   crisis=endRound();
   if(game.streetDogs.length>OVERFLOW_LIMIT){failGame();return}
@@ -314,10 +331,12 @@ function endTurn(){
 }
 function runNpcTurn(){
  if(!game||game.finished||game.handoffPending||!isNPC(active().id))return;
+ if(game.pendingGovOffer)return;
  const p=active();
  if(p.role==='gov'&&game.turnIndex===0)npcGovernmentSubsidy(p);
  else if(p.role==='shelter')npcShelterTurn(p);
  else npcGovernmentTurn(p);
+ if(game.pendingGovOffer)return;
  if(game.pending?.length){toast('NPC 行動未能完成抽取動物處理。');return}
  endTurn();
 }
@@ -394,6 +413,7 @@ function npcGovernmentTurn(gov){
   for(const dog of dogs){
    const candidates=[];
    for(const id of ['s1','s2','s3']){
+    if((game.rejectedGovOffers||[]).includes(`${dog.id}:${id}`))continue;
     const target=game.players[id];
     let facilityIds=[];
     const required=dog.type==='injured'?'medical':dog.type==='alert'?'training':null;
@@ -435,22 +455,75 @@ function npcGovernmentTurn(gov){
   }
   if(!choice)break;
   const {dog,target,facilityIds,grant,total}=choice;
-  gov.funds-=total;
-  for(const id of facilityIds){
-   target.facilities.push(id);
-   const facility=FACILITIES.find(f=>f.id===id);
-   addLog(`${gov.name} 出資 $${facility.cost} 為 ${target.name} 興建「${facility.name}」。`);
+  if(!isNPC(target.id)){
+   game.pendingGovOffer={dogId:dog.id,targetId:target.id,facilityIds,grant,total};
+   addLog(`${gov.name} 提出協調提案，等待 ${target.name} 同意。`);
+   saveState();render();
+   return;
   }
-  if(grant)target.funds+=grant;
-  const index=game.streetDogs.findIndex(item=>item.id===dog.id);
-  if(index>=0&&canHouse(target,dog)){
-   const adopted=game.streetDogs.splice(index,1)[0];
-   placeDog(target,adopted,'（政府協調）');
-   changeAffinity(target.id,1);
-   addLog(`${gov.name} 補助 ${target.name} $${grant} 並協調安置「${adopted.name}」。`);
-  }
-  gov.interventions++;game.publicInterventions++;
+  executeNpcGovernmentOffer(choice);
  }
+}
+function executeNpcGovernmentOffer(offer){
+ const gov=game.players.gov;
+ const dog=game.streetDogs.find(item=>item.id===offer.dog.id);
+ const target=game.players[offer.target.id];
+ const facilityCost=offer.facilityIds.reduce((sum,id)=>sum+(FACILITIES.find(f=>f.id===id)?.cost||0),0);
+ const extraSpace=dog?.trait==='mother'?2:1;
+ const requiredFacility=dog?.type==='injured'?'medical':dog?.type==='alert'?'training':null;
+ if(!dog||!target||gov.funds<offer.total||facilityCost+offer.grant!==offer.total||
+    target.dogs.length+extraSpace>capacity(target)+offer.facilityIds.length||
+    !offer.facilityIds.every(id=>FACILITIES.some(f=>f.id===id))||
+    (requiredFacility&&!facilityCount(target,requiredFacility)&&!offer.facilityIds.includes(requiredFacility))){
+  toast('政府協調提案已無法執行，請重新確認目前局勢。');return false;
+ }
+ gov.funds-=offer.total;
+ for(const id of offer.facilityIds){
+  target.facilities.push(id);
+  const facility=FACILITIES.find(f=>f.id===id);
+  addLog(`${gov.name} 出資 $${facility.cost} 為 ${target.name} 興建「${facility.name}」。`);
+ }
+ if(offer.grant)target.funds+=offer.grant;
+ const index=game.streetDogs.findIndex(item=>item.id===dog.id);
+ if(index>=0&&canHouse(target,dog)){
+  const adopted=game.streetDogs.splice(index,1)[0];
+  placeDog(target,adopted,'（政府協調）');
+  changeAffinity(target.id,1);
+  addLog(`${gov.name} 補助 ${target.name} $${offer.grant} 並協調安置「${adopted.name}」。`);
+ }else{
+  toast('收容所目前無法安置這隻浪浪，協調提案未執行。');return false;
+ }
+ gov.interventions++;game.publicInterventions++;
+ return true;
+}
+function showNpcGovernmentOffer(){
+ const offer=game?.pendingGovOffer;if(!offer)return;
+ const target=game.players[offer.targetId];
+ const dog=game.streetDogs.find(item=>item.id===offer.dogId);
+ if(!target||!dog){toast('協調提案資料不完整，請儲存後重新載入遊戲。');return}
+ const facilities=offer.facilityIds.map(id=>FACILITIES.find(f=>f.id===id)?.name).filter(Boolean);
+ el('govConsentTitle').textContent=`「${target.name}」是否同意收容？`;
+ el('govConsentDesc').textContent=`政府提出安置「${dog.name}」（${STATUS[dog.type].label}${dog.trait?`、${TRAITS[dog.trait]?.name||'特殊效果'}`:''}），將支援 ${facilities.length?`興建${facilities.join('、')}`:'不興建設施'}，並提供 $${offer.grant} 額外經費。只有你同意後才會扣除政府預算、建設及安置。`;
+ el('govConsentOverlay').classList.add('show');
+}
+function respondToNpcGovernmentOffer(accept){
+ const offer=game?.pendingGovOffer;if(!offer)return;
+ const target=game.players[offer.targetId];
+ if(!target||isNPC(target.id)){toast('只有真人收容所玩家可以回覆此協調提案。');return}
+ el('govConsentOverlay').classList.remove('show');
+ game.pendingGovOffer=null;
+ if(accept){
+  const dogId=offer.dogId;
+  const dog=game.streetDogs.find(item=>item.id===dogId);
+  const choice=dog?{...offer,dog,target}:null;
+  if(!choice||!executeNpcGovernmentOffer(choice)){
+   game.rejectedGovOffers.push(`${dogId}:${target.id}`);
+  }
+ }else{
+  game.rejectedGovOffers.push(`${offer.dogId}:${target.id}`);
+  addLog(`${target.name} 拒絕了政府協調提案。`);
+ }
+ saveState();render();runNpcTurn();
 }
 function npcDogPriority(dog){
  if(dog.trait==='media')return 0;
@@ -483,6 +556,7 @@ function render(){
  el('activeIcon').textContent=p.role==='gov'?'🏛️':'🐾';el('activeRole').textContent=p.role==='gov'?'政府回合':'收容所回合';el('activeName').textContent=p.name;el('activeDescription').textContent=p.role==='gov'?'管理一次性 $30 公共預算，決定補助金額與政策。':'照顧收容中的浪浪，透過醫療、訓練、送養與多座設施累積成果。';el('apText').textContent='不限行動次數 · 完成後主動結束回合';
  el('streetDogs').innerHTML=game.streetDogs.length?game.streetDogs.map(d=>dogCardHTML(d,'street',p)).join(''):'<div class="empty-state" style="grid-column:1/-1">街頭暫時沒有待救援的浪浪。<br>這也是社區行動的成果！</div>';
  renderActivePanel(p);renderFacilities(p);renderLog();
+ if(game.pendingGovOffer)showNpcGovernmentOffer();
  el('handoffOverlay').classList.toggle('show',!!game.handoffPending&&!isNPC(p.id));if(game.handoffPending&&!isNPC(p.id))showHandoff();saveState();checkResume();
 }
 function renderActivePanel(p){const root=el('activePanel');
@@ -514,7 +588,7 @@ function drawCrisisCard(base){const card={...(base||pick(CRISIS_CARDS)),triggerC
 }
 function showCrisis(card){el('crisisEmoji').textContent=card.emoji;el('crisisTitle').textContent=card.title;el('crisisThresholdText').textContent=`第 ${card.triggerRound||game.round} 回合協調結束後，街頭未安置浪浪 ${card.triggerCount??game.streetDogs.length} 隻，依數量翻出 ${card.count??1} 張危機卡。${card.desc}`;el('crisisEffect').innerHTML=`<div class="impact-item"><span class="impact-check">!</span><span>${esc(card.effect)}</span></div>`;el('crisisOverlay').classList.add('show')}
 function dismissCrisis(){el('crisisOverlay').classList.remove('show');const next=game?.crisisNext;game.crisisNext=null;saveState();if(next==='results')showResults();else if(next==='handoff'){showHandoff();if(isNPC(active().id))setTimeout(startNextTurn,350)}}
-function renderLog(){el('actionLog').innerHTML=game.log.slice(0,5).map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
+function renderLog(){el('actionLog').innerHTML=game.log.map(item=>`<div class="log-item"><div class="log-time">R${item.round}</div><div class="log-text">${esc(item.message)}</div></div>`).join('')||'<div class="empty-state">還沒有行動紀錄。</div>'}
 function showSetupRulesHint(){toast('請使用上方「遊戲規則」查看規則。')}
 // Friendly local setup: if a saved game exists, offer to resume it.
 checkResume();
